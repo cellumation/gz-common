@@ -302,6 +302,27 @@ namespace gz
       public: static std::unique_ptr<Mesh> MergeSubMeshes(
                   const common::Mesh &_mesh);
 
+      /// \brief Generate an optimized (convex-decomposed or convex-hull)
+      /// version of a mesh and add it to this manager.
+      /// The optimized mesh is cached under a deterministic name so the
+      /// decomposition is only computed once per set of parameters.
+      /// \param[in] _mesh Input mesh to optimize.
+      /// \param[in] _submesh Name of the submesh to optimize. If empty, all
+      /// submeshes are merged before decomposition.
+      /// \param[in] _centerSubmesh Whether the selected submesh should be
+      /// centered before decomposition. Only applies when _submesh is non-empty.
+      /// \param[in] _maxConvexHulls Maximum number of convex hulls. Use 1 for
+      /// a single convex hull.
+      /// \param[in] _voxelResolution Voxel resolution to use.
+      /// \return A pointer to the optimized mesh, or nullptr if optimization
+      /// failed.
+      public: const Mesh *OptimizeMesh(
+                  const common::Mesh &_mesh,
+                  const std::string &_submesh = "",
+                  bool _centerSubmesh = false,
+                  std::size_t _maxConvexHulls = 16u,
+                  std::size_t _voxelResolution = 200000u);
+
       /// \brief Converts a vector of polylines into a table of vertices and
       /// a list of edges (each made of 2 points from the table of vertices.
       /// \param[in] _polys the polylines

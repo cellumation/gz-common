@@ -1839,3 +1839,65 @@ std::unique_ptr<Mesh> MeshManager::MergeSubMeshes(const Mesh &_mesh)
 
   return mesh;
 }
+
+//////////////////////////////////////////////////
+const Mesh *MeshManager::OptimizeMesh(
+    const Mesh &_mesh,
+    const std::string &_submesh,
+    bool _centerSubmesh,
+    std::size_t _maxConvexHulls,
+    std::size_t _voxelResolution)
+{
+  const std::string convexMeshName =
+      _mesh.Name() + "_" + _submesh + "_CONVEX_" +
+      std::to_string(_maxConvexHulls) + "_" + std::to_string(_voxelResolution);
+
+  const Mesh *cachedMesh = this->MeshByName(convexMeshName);
+  if (cachedMesh)
+    return cachedMesh;
+
+  std::unique_ptr<Mesh> meshToDecompose = std::make_unique<Mesh>();
+  if (!_submesh.empty())
+  {
+    for (unsigned int i = 0u; i < _mesh.SubMeshCount(); ++i)
+    {
+      auto submesh = _mesh.SubMeshByIndex(i).lock();
+      if (submesh && submesh->Name() == _submesh)
+      {
+        if (_centerSubmesh)
+          submesh->Center(math::Vector3d::Zero);
+        meshToDecompose->AddSubMesh(*submesh.get());
+        break;
+      }
+    }
+  }
+  else
+  {
+    meshToDecompose = MeshManager::MergeSubMeshes(_mesh);
+  }
+
+  if (!meshToDecompose || meshToDecompose->SubMeshCount() != 1u)
+    return nullptr;
+
+  auto mergedSubmesh = meshToDecompose->SubMeshByIndex(0u).lock();
+  if (!mergedSubmesh)
+    return nullptr;
+
+  std::vector<SubMesh> decomposed =
+      MeshManager::ConvexDecomposition(
+          *mergedSubmesh.get(), _maxConvexHulls, _voxelResolution);
+
+  Mesh *optimizedMesh = new Mesh;
+  optimizedMesh->SetName(convexMeshName);
+  for (const auto &submesh : decomposed)
+    optimizedMesh->AddSubMesh(submesh);
+  this->AddMesh(optimizedMesh);
+
+  if (decomposed.empty())
+  {
+    gzerr << "Convex decomposition generated zero meshes: "
+           << _mesh.Name() << std::endl;
+  }
+
+  return optimizedMesh;
+}
